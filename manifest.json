@@ -1,15 +1,1 @@
-{
-  "name": "CKP V4 - Catatan Keuangan Pribadi",
-  "short_name": "CKP V4",
-  "description": "Catatan Keuangan Pribadi",
-  "lang": "id-ID",
-  "start_url": "./index.html",
-  "scope": "./",
-  "display": "standalone",
-  "orientation": "portrait",
-  "background_color": "#eef1f5",
-  "theme_color": "#14213d",
-  "icons": [
-    {"src":"./icon.svg","sizes":"any","type":"image/svg+xml","purpose":"any maskable"}
-  ]
-}
+{"name":"Catatan Keuangan V4","short_name":"Catatan Keuangan","description":"Aplikasi pencatatan keuangan pribadi","start_url":"./","scope":"./","display":"standalone","background_color":"#0b1220","theme_color":"#101827","lang":"id","icons":[{"src":"icon.svg","sizes":"any","type":"image/svg+xml","purpose":"any maskable"}]}
