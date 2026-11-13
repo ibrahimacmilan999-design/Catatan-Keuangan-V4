@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="id"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#14213d"><meta name="description" content="Catatan Keuangan Pribadi CKP V4"><link rel="manifest" href="manifest.json"><title>CKP V4 - Catatan Keuangan Pribadi</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root{--bg:#eef1f5;--c:#fff;--t:#14213d;--m:#64708a;--a:#14213d;--in:#0b7a5a;--out:#b4412c;--b:#dde2ea;--on:#fff}
+@media(prefers-color-scheme:dark){:root{--bg:#0e1424;--c:#18203a;--t:#e9edf7;--m:#8f9bb8;--a:#8fb0ff;--in:#4fd1a1;--out:#ff9a7e;--b:#2a3558;--on:#0e1424}}
+*{box-sizing:border-box}html,body{margin:0}
+body{background:var(--bg);color:var(--t);font:15px/1.4 system-ui,-apple-system,sans-serif;font-variant-numeric:tabular-nums;padding:env(safe-area-inset-top) 0 calc(76px + env(safe-area-inset-bottom))}
+header{display:flex;align-items:center;justify-content:space-between;padding:14px 16px 6px}
+header b{font-size:18px}.mn{display:flex;align-items:center;gap:6px}
+button,select,input{font:inherit;color:inherit}
+.ic{background:var(--c);border:1px solid var(--b);border-radius:8px;width:34px;height:34px;cursor:pointer}
+main{padding:6px 14px;max-width:640px;margin:auto}
+.card{background:var(--c);border:1px solid var(--b);border-radius:10px;padding:14px;margin-bottom:12px}
+.big{font-size:30px;font-weight:700;margin:2px 0}.m{color:var(--m);font-size:13px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}.two .card{margin:0}
+.in{color:var(--in)}.out{color:var(--out)}h3{margin:18px 2px 8px;font-size:15px}
+.row{display:flex;justify-content:space-between;gap:10px;padding:10px 0;border-top:1px solid var(--b);cursor:pointer}
+.row:first-child{border-top:0}.row>div:first-child{min-width:0}.row small{display:block;color:var(--m)}
+.bar{height:7px;background:var(--b);border-radius:4px;margin-top:6px;overflow:hidden}.bar i{display:block;height:100%;background:var(--a)}
+.bar i.o{background:var(--out)}
+nav{position:fixed;left:0;right:0;bottom:0;display:grid;grid-template-columns:repeat(5,1fr);background:var(--c);border-top:1px solid var(--b);padding:6px 6px calc(6px + env(safe-area-inset-bottom))}
+nav button{background:none;border:0;padding:8px 2px;color:var(--m);cursor:pointer;font-size:12px}
+nav button.on{color:var(--t);font-weight:700}
+nav button.add{background:var(--a);color:var(--on);border-radius:12px;font-size:22px;font-weight:700;line-height:1}
+.fl{display:flex;gap:8px;margin-bottom:10px}.fl>*{flex:1;min-width:0}
+input,select{width:100%;padding:10px;border:1px solid var(--b);border-radius:8px;background:var(--c)}
+label{display:block;margin:10px 0 4px;font-size:13px;color:var(--m)}
+.seg{display:flex;gap:6px;flex-wrap:wrap}.seg button{flex:1;padding:9px 6px;border:1px solid var(--b);background:var(--c);border-radius:8px;cursor:pointer}
+.seg button.on{background:var(--a);color:var(--on);border-color:var(--a)}
+.btn{display:block;width:100%;padding:12px;border-radius:10px;border:1px solid var(--b);background:var(--c);cursor:pointer;margin-top:8px}
+.btn.p{background:var(--a);color:var(--on);border-color:var(--a);font-weight:700}.btn.d{color:var(--out)}
+#sh{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;align-items:flex-end;z-index:9}
+#sh.open{display:flex}#sh>div{background:var(--bg);width:100%;max-height:92%;overflow:auto;border-radius:16px 16px 0 0;padding:16px 16px calc(16px + env(safe-area-inset-bottom));max-width:640px;margin:auto}
+.empty{text-align:center;color:var(--m);padding:26px 10px}
+</style></head><body>
+<header><b id="ttl">CKP</b><div class="mn" id="mn"><button class="ic" data-a="pm">‹</button><span id="ml"></span><button class="ic" data-a="nm">›</button></div><button class="ic" data-a="soundtest" aria-label="Tes suara" title="Tes suara">♫</button></header>
+<main id="v"></main>
+<nav id="nv"></nav>
+<div id="sh"><div id="shc"></div></div>
+<input type="file" id="fx" accept=".xlsx" hidden><input type="file" id="fj" accept=".json" hidden>
+<script>
+const K='ckp_v1',MN=['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+const SFX_KEY='ckp_sfx_v1';
+let soundSettings={enabled:true,volume:0.35};
+try{soundSettings={...soundSettings,...JSON.parse(localStorage.getItem(SFX_KEY)||'{}')}}catch(e){}
+let audioCtx=null;
+function tone(freq,when,duration,type='sine',gain=0.12){if(!audioCtx)return;const o=audioCtx.createOscillator(),g=audioCtx.createGain();o.type=type;o.frequency.setValueAtTime(freq,when);g.gain.setValueAtTime(0.0001,when);g.gain.exponentialRampToValueAtTime(Math.max(0.0002,gain*soundSettings.volume),when+0.012);g.gain.exponentialRampToValueAtTime(0.0001,when+duration);o.connect(g);g.connect(audioCtx.destination);o.start(when);o.stop(when+duration+0.02)}
+function sfx(name='click'){if(!soundSettings.enabled)return;try{const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return;if(!audioCtx)audioCtx=new AC();if(audioCtx.state==='suspended')audioCtx.resume();const t=audioCtx.currentTime;const patterns={click:[[720,0,.045,'sine',.07]],menu:[[520,0,.055,'sine',.07],[780,.045,.07,'sine',.055]],success:[[660,0,.10,'sine',.09],[880,.10,.15,'sine',.09]],income:[[523,0,.08,'triangle',.09],[784,.07,.09,'triangle',.08],[1046,.14,.13,'sine',.08]],expense:[[620,0,.07,'sine',.07],[440,.07,.12,'triangle',.07]],transfer:[[440,0,.07,'sine',.07],[660,.08,.07,'sine',.07],[880,.16,.10,'sine',.07]],delete:[[580,0,.06,'triangle',.08],[360,.06,.12,'triangle',.08]],backup:[[660,0,.08,'sine',.07],[880,.08,.08,'sine',.07],[1100,.16,.16,'sine',.07]],warning:[[440,0,.13,'square',.045],[440,.18,.13,'square',.045]],error:[[260,0,.15,'sawtooth',.045],[190,.16,.18,'sawtooth',.045]],pop:[[800,0,.055,'sine',.06]]};(patterns[name]||patterns.click).forEach(a=>tone(a[0],t+a[1],a[2],a[3],a[4]));}catch(e){}}
+function saveSoundSettings(){localStorage.setItem(SFX_KEY,JSON.stringify(soundSettings))}
+
+const DEF=[['Gaji','Pemasukan'],['Bonus','Pemasukan'],['Hasil Investasi','Pemasukan'],['Pendapatan Lain','Pemasukan'],['Makan & Minum','Pengeluaran'],['Transportasi','Pengeluaran'],['BBM','Pengeluaran'],['Tagihan & Utilitas','Pengeluaran'],['Belanja','Pengeluaran'],['Kesehatan','Pengeluaran'],['Hiburan','Pengeluaran'],['Lainnya','Pengeluaran']].map(x=>({nama:x[0],jenis:x[1],kepala:''}));
+let db=null,bln=new Date(),tab='home',fj='Semua',q='',f=null;
+try{db=JSON.parse(localStorage.getItem(K))}catch(e){}
+db=db||{rek:[{nama:'Tunai',jenis:'Tunai',no:'',awal:0}],kat:DEF,trx:[],ang:{}};
+const save=()=>{try{localStorage.setItem(K,JSON.stringify(db))}catch(e){alert('Data gagal disimpan. Ekspor backup lalu coba lagi.')}};
+const $=s=>document.querySelector(s),esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const fmt=n=>(n<0?'-':'')+'Rp'+Math.abs(Math.round(n)).toLocaleString('id-ID');
+const cur=()=>bln.getFullYear()+'-'+String(bln.getMonth()+1).padStart(2,'0');
+const today=()=>new Date(Date.now()-new Date().getTimezoneOffset()*6e4).toISOString().slice(0,10);
+const isIn=t=>t.jenis=='Pemasukan'||t.kat=='Utang Diterima'||t.kat=='Uang Dikembalikan';
+const saldo=n=>{let s=+(db.rek.find(r=>r.nama==n)||{}).awal||0;for(const t of db.trx){if(t.asal==n)s+=isIn(t)?t.jml:-t.jml;if(t.jenis=='Transfer'&&t.tujuan==n)s+=t.jml}return s};
+const sum=(a,j)=>a.filter(t=>t.jenis==j).reduce((x,t)=>x+t.jml,0);
+const monthTrx=()=>db.trx.filter(t=>t.tgl.slice(0,7)==cur());
+const budget=k=>((db.ang[bln.getFullYear()+'|'+k]||[])[bln.getMonth()])||0;
+function tr(t){const m=t.jenis=='Transfer'?'':isIn(t)?'in':'out';
+return `<div class="row" data-a="ed" data-id="${t.id}"><div>${esc(t.kat)}<small>${esc(t.ket||'')} ${esc(t.asal)}${t.tujuan?' → '+esc(t.tujuan):''} · ${t.tgl.slice(8)}/${t.tgl.slice(5,7)}</small></div><div class="${m}">${m=='in'?'+':m=='out'?'-':''}${fmt(t.jml)}</div></div>`}
+function home(){const mt=monthTrx(),mi=sum(mt,'Pemasukan'),mo=sum(mt,'Pengeluaran'),tot=db.rek.reduce((a,r)=>a+saldo(r.nama),0);
+const by={};mt.filter(t=>t.jenis=='Pengeluaran').forEach(t=>by[t.kat]=(by[t.kat]||0)+t.jml);
+const top=Object.entries(by).sort((a,b)=>b[1]-a[1]).slice(0,5);
+return `<div class="card"><div class="m">Total saldo semua rekening</div><div class="big">${fmt(tot)}</div></div>
+<div class="two"><div class="card"><div class="m">Pemasukan</div><b class="in">${fmt(mi)}</b></div><div class="card"><div class="m">Pengeluaran</div><b class="out">${fmt(mo)}</b></div></div>
+<div class="card" style="margin-top:12px"><div class="m">Selisih bulan ini</div><b class="${mi-mo<0?'out':'in'}">${fmt(mi-mo)}</b></div>
+<h3>Pengeluaran terbesar</h3><div class="card">${top.length?top.map(([k,v])=>`<div style="margin:8px 0"><div style="display:flex;justify-content:space-between"><span>${esc(k)}</span><span>${fmt(v)}</span></div><div class="bar"><i style="width:${v/top[0][1]*100}%"></i></div></div>`).join(''):'<div class="empty">Belum ada pengeluaran bulan ini.</div>'}</div>
+<h3>Transaksi terakhir</h3><div class="card">${db.trx.length?[...db.trx].sort((a,b)=>b.tgl.localeCompare(a.tgl)||b.id-a.id).slice(0,5).map(tr).join(''):'<div class="empty">Belum ada transaksi. Tekan + untuk mencatat.</div>'}</div>`}
+function list(){let a=db.trx.filter(t=>t.tgl.slice(0,7)==cur()&&(fj=='Semua'||t.jenis==fj)&&(!q||(t.kat+' '+(t.ket||'')+' '+t.asal).toLowerCase().includes(q.toLowerCase())));
+a.sort((x,y)=>y.tgl.localeCompare(x.tgl)||y.id-x.id);
+return `<div class="fl"><select data-a="fj">${['Semua','Pemasukan','Pengeluaran','Transfer','Utang','Piutang'].map(j=>`<option ${j==fj?'selected':''}>${j}</option>`).join('')}</select><input id="q" placeholder="Cari kategori atau catatan" value="${esc(q)}"></div>
+<div class="card">${a.length?a.map(tr).join(''):'<div class="empty">Tidak ada transaksi pada bulan dan filter ini.</div>'}</div>`}
+function ang(){const mt=monthTrx().filter(t=>t.jenis=='Pengeluaran'),by={};mt.forEach(t=>by[t.kat]=(by[t.kat]||0)+t.jml);
+const ks=db.kat.filter(k=>k.jenis=='Pengeluaran').map(k=>k.nama);Object.keys(by).forEach(k=>{if(!ks.includes(k))ks.push(k)});
+const rows=ks.map(k=>({k,b:budget(k),r:by[k]||0})).sort((x,y)=>y.r-x.r||y.b-x.b);
+const tb=rows.reduce((s,x)=>s+x.b,0),tr_=rows.reduce((s,x)=>s+x.r,0);
+return `<div class="card"><div class="m">Terpakai dari anggaran</div><div class="big">${fmt(tr_)}</div><div class="m">dari ${fmt(tb)}</div><div class="bar"><i class="${tr_>tb&&tb?'o':''}" style="width:${tb?Math.min(100,tr_/tb*100):0}%"></i></div></div>
+<div class="m" style="margin:0 2px 8px">Ketuk kategori untuk mengubah anggaran bulan ini.</div><div class="card">${rows.map(x=>`<div class="row" data-a="bg" data-k="${esc(x.k)}" style="display:block"><div style="display:flex;justify-content:space-between"><span>${esc(x.k)}</span><span class="${x.b&&x.r>x.b?'out':''}">${fmt(x.r)} / ${fmt(x.b)}</span></div><div class="bar"><i class="${x.b&&x.r>x.b?'o':''}" style="width:${x.b?Math.min(100,x.r/x.b*100):(x.r?100:0)}%"></i></div></div>`).join('')}</div>`}
+function more(){return `<h3>Rekening</h3><div class="card">${db.rek.map((r,i)=>`<div class="row" data-a="er" data-i="${i}"><div>${esc(r.nama)}<small>${esc(r.jenis)} ${esc(r.no)}</small></div><div>${fmt(saldo(r.nama))}</div></div>`).join('')}<button class="btn" data-a="ar">Tambah rekening</button></div>
+<h3>Data</h3><div class="card"><button class="btn p" data-a="ix">Impor dari Excel (NEW_CKP)</button><button class="btn" data-a="ej">Ekspor backup (JSON)</button><button class="btn" data-a="ij">Impor backup (JSON)</button><button class="btn d" data-a="rs">Hapus semua data</button></div>
+<h3>Pengaturan suara</h3><div class="card">
+<label style="display:flex;align-items:center;justify-content:space-between;color:var(--t)"><span>Sound effect</span><input id="sfxOn" type="checkbox" style="width:auto" ${soundSettings.enabled?'checked':''}></label>
+<label for="sfxVol">Volume suara <span id="sfxVolLabel">${Math.round(soundSettings.volume*100)}%</span></label><input id="sfxVol" type="range" min="0" max="100" step="5" value="${Math.round(soundSettings.volume*100)}">
+<button class="btn" data-a="soundtest">Tes sound effect</button><div class="m">Suara pendek berbeda untuk klik, menu, simpan, pemasukan, pengeluaran, transfer, hapus, backup, peringatan, dan error.</div></div>
+<div class="m" style="padding:0 4px">Data tersimpan di browser HP ini saja. Ekspor backup secara berkala. Versi ini masih tahap fondasi; modul lanjutan Excel V4 sedang dipetakan dan belum seluruhnya tersedia.</div>`}
+function render(){$('#ml').textContent=MN[bln.getMonth()]+' '+bln.getFullYear();
+$('#mn').style.visibility=tab=='more'?'hidden':'visible';
+$('#ttl').textContent={home:'Beranda',trx:'Transaksi',ang:'Anggaran',more:'Lainnya'}[tab];
+$('#v').innerHTML={home,trx:list,ang,more}[tab]();
+$('#nv').innerHTML=[['home','Beranda'],['trx','Transaksi'],['add','+'],['ang','Anggaran'],['more','Lainnya']].map(([k,l])=>`<button class="${k==tab?'on':''}${k=='add'?' add':''}" data-a="${k=='add'?'add':'tab'}" data-t="${k}">${l}</button>`).join('')}
+const katOpts=j=>j=='Utang'?['Utang Diterima','Utang Dibayar']:j=='Piutang'?['Uang Dipinjam','Uang Dikembalikan']:j=='Transfer'?['Transfer Antar Rekening']:db.kat.filter(k=>k.jenis==j).map(k=>k.nama);
+function openForm(id){const t=db.trx.find(x=>x.id==id);f=t?{...t}:{jenis:'Pengeluaran',tgl:today(),asal:db.rek[0]?db.rek[0].nama:'',tujuan:'',kat:'',ket:'',jml:''};f._new=!t;drawForm();$('#sh').classList.add('open')}
+function sync(){if(!$('#fa'))return;f.tgl=$('#ft').value;f.asal=$('#fa').value;f.tujuan=$('#fu')?$('#fu').value:'';f.kat=$('#fk').value;f.ket=$('#fn').value;f.jml=$('#fm').value}
+function drawForm(){const ko=katOpts(f.jenis);if(!ko.includes(f.kat))f.kat=ko[0]||'';
+const op=(a,v)=>a.map(x=>`<option ${x==v?'selected':''}>${esc(x)}</option>`).join('');const rn=db.rek.map(r=>r.nama);
+$('#shc').innerHTML=`<div class="seg">${['Pengeluaran','Pemasukan','Transfer','Utang','Piutang'].map(j=>`<button class="${j==f.jenis?'on':''}" data-a="fjn" data-j="${j}">${j}</button>`).join('')}</div>
+<label>Tanggal</label><input id="ft" type="date" value="${f.tgl}"><label>${f.jenis=='Transfer'?'Dari rekening':'Rekening'}</label><select id="fa">${op(rn,f.asal)}</select>
+${f.jenis=='Transfer'?`<label>Ke rekening</label><select id="fu">${op(rn,f.tujuan||rn.find(x=>x!=f.asal))}</select>`:''}
+<label>Kategori</label><select id="fk">${op(ko,f.kat)}</select><label>Jumlah (Rp)</label><input id="fm" type="number" inputmode="numeric" min="0" value="${f.jml}"><label>Catatan</label><input id="fn" value="${esc(f.ket)}">
+<button class="btn p" data-a="sv">Simpan</button>${f._new?'':'<button class="btn d" data-a="dl">Hapus transaksi</button>'}<button class="btn" data-a="cl">Batal</button>`}
+function saveForm(){sync();const j=+f.jml;if(!(j>0)){sfx('error');return alert('Isi jumlah lebih dari 0.')}if(!f.asal){sfx('warning');return alert('Pilih rekening.');}
+if(f.jenis=='Transfer'&&(!f.tujuan||f.tujuan==f.asal)){sfx('warning');return alert('Pilih rekening tujuan yang berbeda.');}
+const o={id:f.id||Date.now(),tgl:f.tgl,asal:f.asal,jenis:f.jenis,tujuan:f.jenis=='Transfer'?f.tujuan:'',kat:f.kat,ket:f.ket,jml:j};
+if(f._new)db.trx.push(o);else db.trx[db.trx.findIndex(x=>x.id==f.id)]=o;save();sfx(f.jenis=='Pemasukan'?'income':f.jenis=='Pengeluaran'?'expense':f.jenis=='Transfer'?'transfer':'success');$('#sh').classList.remove('open');render()}
+const ser=s=>{if(typeof s=='number')return new Date(Math.round((s-25569)*864e5)).toISOString().slice(0,10);const d=new Date(s);return isNaN(d)?'':d.toISOString().slice(0,10)};
+function impX(file){const r=new FileReader();r.onload=e=>{try{const wb=XLSX.read(e.target.result,{type:'array'});
+const rw=n=>wb.Sheets[n]?XLSX.utils.sheet_to_json(wb.Sheets[n],{header:1,raw:true,defval:''}).slice(1):[];
+const rek=rw('Rekening').filter(r=>r[1]&&!/^total/i.test(r[1])).map(r=>({nama:String(r[1]),jenis:String(r[2]),no:String(r[3]),awal:+r[4]||0}));
+const kat=rw('Kategori').filter(r=>r[0]&&r[1]).map(r=>({nama:String(r[0]),jenis:String(r[1]),kepala:String(r[2])}));
+let n=Date.now();const trx=rw('Transaksi').filter(r=>r[1]&&r[2]&&r[3]&&r[7]!==''&&!isNaN(+r[7])).map(r=>({id:n++,tgl:ser(r[1]),asal:String(r[2]),jenis:String(r[3]),tujuan:String(r[4]),kat:String(r[5]),ket:String(r[6]),jml:+r[7]})).filter(t=>t.tgl);
+const a={};rw('Anggaran Bulanan').filter(r=>r[2]&&typeof r[0]=='number').forEach(r=>a[r[0]+'|'+r[1]]=r.slice(3,15).map(x=>+x||0));
+if(!rek.length||!trx.length)return alert('Sheet Rekening atau Transaksi tidak terbaca. Pastikan ini file CKP.');
+if(!confirm(`Ganti semua data dengan ${rek.length} rekening, ${trx.length} transaksi, ${Object.keys(a).length} baris anggaran?`))return;
+db={rek,kat:kat.length?kat:DEF,trx,ang:a};save();tab='home';render();sfx('backup');alert('Impor selesai.')}catch(x){alert('Gagal membaca file: '+x.message)}};r.readAsArrayBuffer(file)}
+const dl=()=>{const u=URL.createObjectURL(new Blob([JSON.stringify(db)],{type:'application/json'})),a=document.createElement('a');a.href=u;a.download='ckp-backup-'+today()+'.json';a.click()};
+document.addEventListener('click',e=>{const b=e.target.closest('[data-a]');if(!b)return;const a=b.dataset.a;
+if(!['soundtest','tab','add','ed','sv','dl','ej'].includes(a)){sfx(({pm:'click',nm:'click',fjn:'click',cl:'click',bg:'pop',ar:'pop',er:'click',ix:'click',ij:'click',rs:'warning'})[a]||'click')}
+if(a=='soundtest'){sfx('success');return}
+if(a=='tab'){sfx('menu');tab=b.dataset.t;render()}else if(a=='add'){sfx('pop');openForm()}else if(a=='ed'){sfx('click');openForm(b.dataset.id)}
+else if(a=='pm'){bln=new Date(bln.getFullYear(),bln.getMonth()-1,1);render()}else if(a=='nm'){bln=new Date(bln.getFullYear(),bln.getMonth()+1,1);render()}
+else if(a=='fjn'){sync();f.jenis=b.dataset.j;f.kat='';drawForm()}else if(a=='sv')saveForm();else if(a=='cl')$('#sh').classList.remove('open');
+else if(a=='dl'){if(confirm('Hapus transaksi ini?')){db.trx=db.trx.filter(x=>x.id!=f.id);save();sfx('delete');$('#sh').classList.remove('open');render()}else sfx('click')}
+else if(a=='bg'){const k=b.dataset.k,v=prompt(`Anggaran ${k} untuk ${MN[bln.getMonth()]} ${bln.getFullYear()} (Rp):`,budget(k));if(v===null)return;const y=bln.getFullYear()+'|'+k;db.ang[y]=db.ang[y]||Array(12).fill(0);db.ang[y][bln.getMonth()]=Math.max(0,+v||0);save();render()}
+else if(a=='ar'){const n=prompt('Nama rekening:');if(!n)return;if(db.rek.some(r=>r.nama==n))return alert('Nama sudah dipakai.');const j=prompt('Jenis (Bank, E-Wallet, Tunai):','Bank')||'Bank';db.rek.push({nama:n,jenis:j,no:'',awal:+prompt('Saldo awal (Rp):','0')||0});save();render()}
+else if(a=='er'){const r=db.rek[b.dataset.i],n=prompt('Nama rekening (kosongkan untuk menghapus):',r.nama);if(n===null)return;
+if(n===''){if(db.trx.some(t=>t.asal==r.nama||t.tujuan==r.nama))return alert('Rekening ini masih dipakai transaksi, tidak bisa dihapus.');db.rek.splice(b.dataset.i,1)}
+else{const s=prompt('Saldo awal (Rp):',r.awal);if(s===null)return;if(n!=r.nama)db.trx.forEach(t=>{if(t.asal==r.nama)t.asal=n;if(t.tujuan==r.nama)t.tujuan=n});r.nama=n;r.awal=+s||0}save();render()}
+else if(a=='ix'){sfx('click');$('#fx').click()}else if(a=='ej'){dl();sfx('backup')}else if(a=='ij'){sfx('click');$('#fj').click()}
+else if(a=='rs'){if(confirm('Hapus SEMUA data di HP ini? Ekspor backup dulu.')){db={rek:[{nama:'Tunai',jenis:'Tunai',no:'',awal:0}],kat:DEF,trx:[],ang:{}};save();render()}}});
+document.addEventListener('change',e=>{if(e.target.dataset.a=='fj'){fj=e.target.value;render()}if(e.target.id=='sfxOn'){soundSettings.enabled=e.target.checked;saveSoundSettings();if(soundSettings.enabled)sfx('success')} });
+document.addEventListener('input',e=>{if(e.target.id=='sfxVol'){soundSettings.volume=Number(e.target.value)/100;saveSoundSettings();const l=document.querySelector('#sfxVolLabel');if(l)l.textContent=e.target.value+'%'}});
+document.addEventListener('input',e=>{if(e.target.id=='q'){q=e.target.value;const p=e.target.selectionStart;render();const n=$('#q');n.focus();n.setSelectionRange(p,p)}});
+$('#fx').onchange=e=>{if(e.target.files[0])typeof XLSX=='undefined'?alert('Pustaka Excel belum termuat. Cek koneksi internet.'):impX(e.target.files[0]);e.target.value=''};
+$('#fj').onchange=e=>{const r=new FileReader();r.onload=x=>{try{const d=JSON.parse(x.target.result);if(!d.rek||!d.trx)throw 0;if(confirm('Ganti semua data dengan backup ini?')){db=d;save();render();sfx('backup')}}catch(_){alert('File backup tidak valid.')}};if(e.target.files[0])r.readAsText(e.target.files[0]);e.target.value=''};
+render();
+if('serviceWorker' in navigator && location.protocol.startsWith('http')){window.addEventListener('load',()=>navigator.serviceWorker.register('./service-worker.js').catch(()=>{}));}
+</script></body></html>
